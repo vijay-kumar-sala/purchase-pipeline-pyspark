@@ -1,5 +1,15 @@
 from pyspark.sql import SparkSession
 # from pyspark.sql.functions import expr
+import logging
+import sys
+import os
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__),'../../configuration')))
+
+from custom_logging import set_logging
+
+set_logging()
+logger = logging.getLogger('transformlog')
 
 def format_query_str(cols,fun):
     
@@ -18,7 +28,7 @@ def format_query_str(cols,fun):
             query_form += " count({}) as {},".format(cols[i],cols[i])
     return query_form
 
-def grpByKeyAgg(spark, df, key, sum, avg, min, max, count):
+def grpByKeyAgg(spark, df, key, sum=None, avg=None, min=None, max=None, count=None):
 
     try:
         if(key!=None):
@@ -39,7 +49,7 @@ def grpByKeyAgg(spark, df, key, sum, avg, min, max, count):
             queryString = queryString[:-1] + ' '
             queryString += "FROM tempView GROUP BY {}".format(key)
 
-            print("Printing query string: {}".format(queryString))
+            logger.warn("Printing query string: {}".format(queryString))
             df.createOrReplaceTempView("tempView")
             grouped_df = spark.sql(queryString)
 
@@ -47,7 +57,7 @@ def grpByKeyAgg(spark, df, key, sum, avg, min, max, count):
 
     except Exception as e:
 
-        print("exception {} while grouping and aggregation on df".format(e))
+        logger.error("exception {} while grouping and aggregation on df".format(e))
 
 def join_df(spark, left_df,right_df, Joining_condition, joining_type):
 
@@ -64,7 +74,7 @@ def join_df(spark, left_df,right_df, Joining_condition, joining_type):
             return spark.sql(queryString)
 
     except Exception as e:
-        print("exception {} while joining two dataframes, please cehck joining condition and type".format(e))
+        logger.error("exception {} while joining two dataframes, please cehck joining condition and type".format(e))
 
 
         
