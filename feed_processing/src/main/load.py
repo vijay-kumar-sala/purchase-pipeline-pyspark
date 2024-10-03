@@ -40,6 +40,7 @@ def to_file(df, path, ext):
             logger.warn("writing df to text file")
             df.write\
                 .text(path)
+        logger.info("written to sink")
     except Exception as e:
         logger.error("exception {} while write to file".format(e))
 
@@ -53,6 +54,7 @@ def to_bq(df, path, connection_uri, write_disposition, create_disposition):
             .option("create_disposition",create_disposition)\
             .mode(write_disposition)\
             .save()
+        logger.info("written to sink")
     except Exception as e:
         logger.error("exception {} while write to bigquery".format(e))
 
@@ -64,6 +66,7 @@ def to_mongo(df, path, connection_uri, write_disposition, create_disposition):
             .option("spark.mongodb.write.connection.uri",connection_uri+path)\
             .mode(write_disposition)\
             .save()
+        logger.info("written to sink")
     
     except Exception as e:
         logger.error('exception {} while write to mongodb'.format(e))

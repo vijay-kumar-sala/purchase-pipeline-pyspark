@@ -16,7 +16,7 @@ def val_spark_obj(spark):
     
     try:
 
-        logger.info("validated spark object: {}".format(spark.sql("SELECT current_date")))
+        logger.info("validated spark object: {}".format(spark.sql("SELECT current_date").collect()))
         return True
 
     except Exception as e:
@@ -41,3 +41,36 @@ def val_feed(input_file):
         return False
 
 # data validation
+
+def val_schema(actualModel,df):
+
+    try:
+            
+        logger.info("Inside schema validation for {}".format(df))
+        # logger.info("printing schema {}".format(df.printSchema()))
+        
+        df_columns = df.columns
+        actualModelDict = actualModel["schema"]
+        model_keys = list(actualModelDict.keys())
+        if(len(df_columns)==len(model_keys)):
+            model_keys.sort()
+            df_columns.sort()
+            df_columns_types = df.dtypes
+            for i in range(0,len(df_columns)):
+                if(df_columns[i]!=model_keys[i]):
+
+                    logger.warn("schema not match with actual df columns for {} model {} df particularly {} != {}".format(model_keys,df_columns,model_keys[i],df_columns[i]))
+                    return False
+                if(df_columns_types[i][1]!=actualModelDict[df_columns_types[i][0]]['type']):
+                    logger.warn("type not match with actual df columns for {} model {} df {}--{} columns, {}--{}types".format(actualModel,df,model_keys[i],df_columns[i],df_columns_types[i][1],actualModelDict[df_columns_types[i][0]]['type']))
+                    return False
+        else:
+            logger.warn("noof df columns not match with actual model columns for {} model {} df".format(actualModel,df))
+            return False
+
+    except Exception as e:
+        logger.error("exception {} while schema validation".format(e))
+        return False
+
+    logger.info("successfully schema validation done")
+    return True

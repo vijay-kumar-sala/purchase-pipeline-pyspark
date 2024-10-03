@@ -1,0 +1,27 @@
+{
+    "schema":{
+        "user_id":{
+            "type":"string",
+            "required":"true"
+        },
+        "user_name":{
+            "type":"string",
+            "required":"true"
+        },
+        "user_phno":{
+            "type":"string",
+            "required":"false"
+        },
+        "user_address":{
+            "type":"struct<city:string,state:string>",
+            "city":{
+                "type":"string",
+                "required":"true"
+            },
+            "state":{
+                "type":"string",
+                "required":"true"
+            }
+        }
+    }
+}

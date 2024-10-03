@@ -25,34 +25,34 @@ def file_reader(spark, path, file_extension):
 # read json file
 def read_json(spark, path):
     try:
-        logger.info("reading json file")
+        logger.info("reading input json file")
         return spark\
                     .read\
                     .json(path)
     except Exception as e:
-        logger.error("exception {} while reading json file".format(e))
+        logger.error("exception {} while reading input json file".format(e))
 
 # read csv file
 def read_csv(spark, path,header,inferSchema):
     try:
-        logger.info("reading csv file")
+        logger.info("reading input csv file")
         return spark\
                     .read\
                     .option("header",header)\
                     .option("inferschema",inferSchema)\
                     .csv(path)
     except Exception as e:
-        logger.error("exception {} while reading csv file".format(e))
+        logger.error("exception {} while reading input csv file".format(e))
 
 # read text file
 def read_text(spark, path):
     try:
-        logger.info("reading text file")
+        logger.info("reading input text file")
         return spark\
                     .read\
                     .text(path)
     except Exception as e:
-        logger.error("exception {} while reading text file".format(e))
+        logger.error("exception {} while reading input text file".format(e))
 
 
 # def read_parquet()ss
