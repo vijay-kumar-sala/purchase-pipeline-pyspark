@@ -1,5 +1,6 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import current_date
+from pyspark.sql.functions import current_date, col
+from py4j.java_gateway import java_import
 import logging
 import sys
 import os
@@ -16,7 +17,7 @@ def val_spark_obj(spark):
     
     try:
 
-        logger.info("validated spark object: {}".format(spark.sql("SELECT current_date").collect()))
+        logger.info("validated spark object: {}".format(spark.sql("SELECT current_date as date").collect()))
         return True
 
     except Exception as e:
@@ -24,11 +25,27 @@ def val_spark_obj(spark):
         return False
 
 
-def val_feed(input_file):
+def val_feed(spark, input_file_path):
 
     try:
-        logger.info("validating input file {} at {}".format(input_file,current_date()))
-        size = os.path.getsize(input_file)
+        logger.info("validating input file {} at {}".format(input_file_path,current_date()))
+
+        s_context = spark.sparkContext
+
+        java_import(s_context._gateway.jvm,"org.apache.hadoop.fs.FileSystem")
+        java_import(s_context._gateway.jvm,"org.apache.hadoop.fs.Path")
+
+        hadoop_conf = s_context._jsc.hadoopConfiguration()
+        print("done1")
+        hdfs = s_context._gateway.jvm.FileSystem.get(hadoop_conf)
+        print("done2",type(hdfs))
+
+        path = s_context._gateway.jvm.Path(input_file_path)
+        print("done3")
+        file_status = hdfs.getFileStatus(path)
+        print("done4")
+
+        size = file_status.getLen()
         logger.info("file size is: {}".format(size))
 
         if(size==0):
@@ -74,3 +91,26 @@ def val_schema(actualModel,df):
 
     logger.info("successfully schema validation done")
     return True
+
+
+def val_data_cleaning(actualModel,df):
+
+    try:
+
+        logger.info("validating data for df {}".format(df))
+
+        df_columns = df.columns
+        actualModel_dict = actualModel["schema"]
+        for column in df_columns:
+            if(actualModel_dict[column]["required"]=="true"):
+                col_nulls_from_df=df.where(col(column)== None)
+                if(col_nulls_from_df!=None):
+                    logger.warn("having null value for required field {}".format(column))
+                    logger.warn("rows with null values for above field: {} \n removing rows with null".format(col_nulls_from_df))
+                    df=df.where(col(column)!=None)
+
+        return True
+
+    except Exception as e:
+        logger.error("Exception {} while data validation at checking null values for required fields.".format(e))
+        return False

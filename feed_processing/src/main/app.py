@@ -1,6 +1,6 @@
 from pyspark.sql import SparkSession
 from read_file import file_reader
-from validate import val_spark_obj, val_feed, val_schema
+from validate import val_spark_obj, val_feed, val_schema, val_data_cleaning
 from transform import grpByKeyAgg, join_df
 from load import write_to_sink
 import logging
@@ -45,10 +45,10 @@ def main():
 
         inputFilePaths = args.input_path.split(',')
         
-        # for file_path in inputFilePaths:
+        for file_path in inputFilePaths:
 
-        #     if(not val_feed(file_path)):
-        #         return False
+            if(not val_feed(spark, file_path)):
+                return False
         # read data
         users_df = file_reader(spark=spark, path=inputFilePaths[0], file_extension=inputFilePaths[0].split('.')[-1])
 
@@ -60,15 +60,15 @@ def main():
             users_df.printSchema()
             purchase_df.printSchema()
 
+            if(val_data_cleaning(actualModel=purchaseModel,df=purchase_df) and val_data_cleaning(actualModel=usersModel,df=users_df)):
+                users_quantity_df = grpByKeyAgg(spark=spark, df=purchase_df,key="user_id",sum="Quantity")
+                users_quantity_df.show()
+                joined_df = join_df(spark=spark, left_df=users_df, right_df=users_quantity_df, Joining_condition="leftView.user_id = rightView.user_id", joining_type="inner")
 
-            users_quantity_df = grpByKeyAgg(spark=spark, df=purchase_df,key="user_id",sum="Quantity")
-            users_quantity_df.show()
-            joined_df = join_df(spark=spark, left_df=users_df, right_df=users_quantity_df, Joining_condition="leftView.user_id = rightView.user_id", joining_type="inner")
+                res_df = grpByKeyAgg(spark=spark,df=joined_df,key="user_address",sum="Quantity")
 
-            res_df = grpByKeyAgg(spark=spark,df=joined_df,key="user_address",sum="Quantity")
-
-            # load data
-            write_to_sink(df=res_df, sink=args.sink, sink_path=args.output_path, connection_uri=args.connection_uri, write_disposition=args.write_disposition, create_disposition=args.create_disposition)
+                # load data
+                write_to_sink(df=res_df, sink=args.sink, sink_path=args.output_path, connection_uri=args.connection_uri, write_disposition=args.write_disposition, create_disposition=args.create_disposition)
 
         spark.stop()
         logger.info("spark application stopped")
