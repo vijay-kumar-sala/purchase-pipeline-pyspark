@@ -82,6 +82,7 @@ def val_schema(actualModel,df):
                     logger.warn("type not match with actual df columns for {} model {} df {}--{} columns, {}--{}types".format(actualModel,df,model_keys[i],df_columns[i],df_columns_types[i][1],actualModelDict[df_columns_types[i][0]]['type']))
                     return False
         else:
+            df.show()
             logger.warn("noof df columns not match with actual model columns for {} model {} df".format(actualModel,df))
             return False
 
@@ -99,17 +100,24 @@ def val_data_cleaning(actualModel,df):
 
         logger.info("validating data for df {}".format(df))
 
+        df.show()
         df_columns = df.columns
         actualModel_dict = actualModel["schema"]
-        for column in df_columns:
-            if(actualModel_dict[column]["required"]=="true"):
-                col_nulls_from_df=df.where(col(column)== None)
-                if(col_nulls_from_df!=None):
-                    logger.warn("having null value for required field {}".format(column))
-                    logger.warn("rows with null values for above field: {} \n removing rows with null".format(col_nulls_from_df))
-                    df=df.where(col(column)!=None)
 
-        return True
+        for column in df_columns:
+
+            if(actualModel_dict[column]["required"]=="true"):
+                col_nulls_from_df=df.where(col(column).isNull())
+                col_nulls_from_df.show()
+
+                if(col_nulls_from_df.count()!=0):
+                    logger.warn("having null value for required field {}".format(column))
+                    logger.warn("rows with null values for above field: {} \n removing rows with null".format(col_nulls_from_df.collect()))
+                    df=df.where(col(column).isNotNull())
+
+                else:
+                    logger.info(f"No null values for required field {column}")
+        return df
 
     except Exception as e:
         logger.error("Exception {} while data validation at checking null values for required fields.".format(e))

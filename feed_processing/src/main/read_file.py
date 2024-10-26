@@ -28,6 +28,8 @@ def read_json(spark, path):
         logger.info("reading input json file")
         return spark\
                     .read\
+                    .option("mode","PERMISSIVE")\
+                    .option("nullValue",None)\
                     .json(path)
     except Exception as e:
         logger.error("exception {} while reading input json file".format(e))

@@ -60,7 +60,13 @@ def main():
             users_df.printSchema()
             purchase_df.printSchema()
 
-            if(val_data_cleaning(actualModel=purchaseModel,df=purchase_df) and val_data_cleaning(actualModel=usersModel,df=users_df)):
+            # data validation, cleaning
+            users_df = val_data_cleaning(actualModel=usersModel,df=users_df)
+
+            purchase_df = val_data_cleaning(actualModel=purchaseModel,df=purchase_df)
+
+            if(users_df!=None and purchase_df!=None):
+
                 users_quantity_df = grpByKeyAgg(spark=spark, df=purchase_df,key="user_id",sum="Quantity")
                 users_quantity_df.show()
                 joined_df = join_df(spark=spark, left_df=users_df, right_df=users_quantity_df, Joining_condition="leftView.user_id = rightView.user_id", joining_type="inner")
