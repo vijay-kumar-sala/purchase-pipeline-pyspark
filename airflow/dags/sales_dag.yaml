@@ -1,0 +1,33 @@
+sales_daily_dag:
+  default_args:
+    retries: 0
+    start_date: '2024-11-01'
+  schedule_interval: "00 22 * * *"
+  catchup: False
+  description: "sales dag in dev env"
+  tasks:
+    start: 
+      operator: airflow.operators.dummy_operator.DummyOperator
+    feed_processing:
+      operator: airflow.operators.python.PythonOperator
+      python_callable_name: run_spark_job
+      python_callable_file: '/home/kumar/airflow/plugins/plugin1_0.py'
+      provide_context: true
+      op_kwargs:
+        master: "local"
+        packages: "org.mongodb.spark:mongo-spark-connector_2.12:10.1.1"
+        main: "/home/kumar/datapipeline-pyspark/feed_processing/src/main/app.py"
+        app_name: "sales_analysis"
+        input_path: "/vijay/xyzSales/usersData.json,/vijay/xyzSales/itemPurchaseDataWithNulls.json"
+        sink: "mongo"
+        output_path: "xyzSalesDB.sales_analysis"
+        connection_uri: "mongodb://hostname:port/"
+        write_disposition: "append"
+        create_disposition: "create_if_needed"
+      dependencies:
+        - start
+    end:
+      operator: airflow.operators.dummy_operator.DummyOperator
+      trigger_rule: 'none_failed' 
+      dependencies:
+        - feed_processing
