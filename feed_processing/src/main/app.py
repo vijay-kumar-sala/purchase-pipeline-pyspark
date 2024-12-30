@@ -1,6 +1,6 @@
 from pyspark.sql import SparkSession
 from read_file import file_reader
-from validate import val_spark_obj, val_feed, val_schema, val_data_cleaning
+from validate import val_spark_obj, val_feed, val_schema, data_validation
 from transform import grpByKeyAgg, join_df
 from load import write_to_sink
 import logging
@@ -13,11 +13,12 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__),'../../')
 
 from configuration.custom_logging import set_logging
 
-with open("feed_processing/data_model/usersModel.json","r") as jsonFile:
+with open("/home/kumar/datapipeline-pyspark/feed_processing/data_model/usersModel.json","r") as jsonFile:
     usersModel = json.load(jsonFile)
 
-with open("feed_processing/data_model/purchaseModel.json","r") as jsonFile:
+with open("/home/kumar/datapipeline-pyspark/feed_processing/data_model/purchaseModel.json","r") as jsonFile:
     purchaseModel = json.load(jsonFile)
+
 
 set_logging()
 logger = logging.getLogger('applog')
@@ -61,9 +62,9 @@ def main():
             purchase_df.printSchema()
 
             # data validation, cleaning
-            users_df = val_data_cleaning(actualModel=usersModel,df=users_df)
+            users_df = data_validation(df=users_df,df_name="users_df")
 
-            purchase_df = val_data_cleaning(actualModel=purchaseModel,df=purchase_df)
+            purchase_df = data_validation(df=purchase_df,df_name="purchase_df")
 
             if(users_df!=None and purchase_df!=None):
 
