@@ -30,15 +30,15 @@ def write_to_sink(df, sink, sink_path, file_extension=None, connection_uri=None,
 def to_file(df, path, ext):
     try:
         if(ext == "json"):
-            logger.warn("writing df to json file")
+            logger.info("writing df to json file")
             df.write\
                 .json(path)
         if(ext == "csv"):
-            logger.warn("writing df to csv file")
+            logger.info("writing df to csv file")
             df.write\
                 .csv(path)
         if(ext == "txt"):
-            logger.warn("writing df to text file")
+            logger.info("writing df to text file")
             df.write\
                 .text(path)
     except Exception as e:
@@ -46,7 +46,7 @@ def to_file(df, path, ext):
 
 def to_bq(df, path, connection_uri, write_disposition, create_disposition):
     try:
-        logger.warn('writing to bigquery')
+        logger.info('writing to bigquery')
         project_id = connection_uri
         df.write\
             .format("bigquery")\
@@ -59,7 +59,7 @@ def to_bq(df, path, connection_uri, write_disposition, create_disposition):
 
 def to_mongo(df, path, connection_uri, write_disposition, create_disposition):
     try:
-        logger.warn('wrtiting to mongodb')
+        logger.info('wrtiting to mongodb')
         df.write\
             .format("mongodb")\
             .option("spark.mongodb.write.connection.uri",connection_uri+path)\
