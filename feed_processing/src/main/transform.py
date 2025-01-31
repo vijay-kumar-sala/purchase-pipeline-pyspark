@@ -1,8 +1,9 @@
 from pyspark.sql import SparkSession
-# from pyspark.sql.functions import expr
+from pyspark.sql.DataFrame import select, withColumns
 import logging
 import sys
 import os
+import datetime
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__),'../../configuration')))
 
@@ -11,7 +12,7 @@ from custom_logging import set_logging
 set_logging()
 logger = logging.getLogger('transformlog')
 
-def format_query_str(cols,fun):
+def format_query_str_agg_funs(cols,fun):
     
     query_form = ""
 
@@ -26,6 +27,7 @@ def format_query_str(cols,fun):
             query_form += " max({}) as {},".format(cols[i],cols[i])
         if(fun == "count"):
             query_form += " count({}) as {},".format(cols[i],cols[i])
+
     return query_form
 
 def grpByKeyAgg(spark, df, key, sum=None, avg=None, min=None, max=None, count=None):
@@ -36,15 +38,15 @@ def grpByKeyAgg(spark, df, key, sum=None, avg=None, min=None, max=None, count=No
             queryString = "SELECT {},".format(key)
 
             if(sum!=None):
-                queryString += format_query_str(sum.split(','),"sum")
+                queryString += format_query_str_agg_funs(sum.split(','),"sum")
             if(avg!=None):
-                queryString += format_query_str(avg.split(','),"avg")
+                queryString += format_query_str_agg_funs(avg.split(','),"avg")
             if(min!=None):
-                queryString += format_query_str(min.split(','),"min")
+                queryString += format_query_str_agg_funs(min.split(','),"min")
             if(max!=None):
-                queryString += format_query_str(max.split(','),"max")
+                queryString += format_query_str_agg_funs(max.split(','),"max")
             if(count!=None):
-                queryString += format_query_str(count.split(','),"count")
+                queryString += format_query_str_agg_funs(count.split(','),"count")
             
             queryString = queryString[:-1] + ' '
             queryString += "FROM tempView GROUP BY {}".format(key)
@@ -77,4 +79,47 @@ def join_df(spark, left_df,right_df, Joining_condition, joining_type):
         logger.error("exception {} while joining two dataframes, please cehck joining condition and type".format(e))
 
 
+def merge_columns(spark,df,col_delimiter,merging_cols):
+
+    try:
         
+        df_columns = df.columns
+        df.createOrReplaceTempView("mergeRowsView")
+        if(type(merging_cols)==str):
+            merging_cols = merging_cols.split(',')
+        if(merging_cols==["*"]):
+            queryString = "Select concat("
+            for col in df_columns:
+                queryString += "{},'{}',".format(col,col_delimiter)
+
+            queryString += "{} From mergeRowsView".format(df_columns[-1])
+        else:
+            queryString = "Select concat("
+            for col in merging_cols:
+                queryString += "{},'{}',".format(col,col_delimiter)
+
+            queryString += "{} from mergeRowsView".format(merging_cols[-1])
+        
+        return spark.sql(queryString)
+
+    except Exception as e:
+        logger.error("Exception {} at columns concatination".format(e))
+
+def add_columns(spark, df, new_col_def):
+
+    try:
+        for key in new_col_def:
+            cur_def = new_col_def[key]
+            if(cur_def["column_name"]=="dateTime"):
+                if(cur_def["expression"]=="now"):
+                    df = df.withColumns(cur_def["column_name"],datetime.datetime.now)
+                elif(cur_def["expression"]=="date"):
+                    df = df.withColumns(cur_def["column_name"],datetime.date)
+            else:
+                df = df.withColumns(cur_def["column_name"],cur_def["expression"])
+        
+        return df
+    except Exception as e:
+        logger.error("Exception {} at adding column to dataframe".format(e))
+
+        return None

@@ -3,6 +3,7 @@ from read_file import file_reader
 from validate import val_spark_obj, val_feed, val_schema, data_validation
 from transform import grpByKeyAgg, join_df
 from load import write_to_sink
+from data_parser import DataParser
 import logging
 import argparse
 import sys
@@ -13,13 +14,6 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__),'../../')
 
 from configuration.custom_logging import set_logging
 
-with open("/home/kumar/datapipeline-pyspark/feed_processing/data_model/usersModel.json","r") as jsonFile:
-    usersModel = json.load(jsonFile)
-
-with open("/home/kumar/datapipeline-pyspark/feed_processing/data_model/purchaseModel.json","r") as jsonFile:
-    purchaseModel = json.load(jsonFile)
-
-
 set_logging()
 logger = logging.getLogger('applog')
 
@@ -28,6 +22,8 @@ def main():
     parser.add_argument("--app_name")
     parser.add_argument("--input_path")
     parser.add_argument("--sink")
+    parser.add_argument("--bad_rows_collection")
+    parser.add_argument("--staging_area")
     parser.add_argument("--output_path")
     parser.add_argument("--connection_uri")
     parser.add_argument("--write_disposition")
@@ -50,22 +46,45 @@ def main():
 
             if(not val_feed(spark, file_path)):
                 return False
-        # read data
-        users_df = file_reader(spark=spark, path=inputFilePaths[0], file_extension=inputFilePaths[0].split('.')[-1])
 
-        purchase_df = file_reader(spark=spark, path=inputFilePaths[1],file_extension=inputFilePaths[1].split('.')[-1])
+            filename = file_path.split('/')[-1].split('.')[0]
+            if(filename.endswith("data")):
+                filename=filename[0:filename.index("data")]
+            df_name = filename+"_df"
+            DataParser_obj = DataParser(filename, file_path, df_name)
+            # read data
+            DataParser_obj.file_reader(spark=spark)
+            DataParser_obj.get_df().show()
 
-        if(val_schema(actualModel=purchaseModel,df=purchase_df) and val_schema(actualModel=usersModel,df=users_df)):
 
-            # transform
-            users_df.printSchema()
-            purchase_df.printSchema()
+            if(DataParser_obj.schema_validation()):
 
-            # data validation, cleaning
-            users_df = data_validation(df=users_df,df_name="users_df")
+                # data validation, cleaning
+                DataParser_obj.data_validation()
+                if(DataParser_obj.bad_rows!=None):
+                    logger.info("bad rows count: {}".format(DataParser_obj.bad_rows.count()))
+                    logger.info("{}".format(DataParser_obj.bad_rows))
+                    bad_merged_rows = merge_columns(spark,DataParser_obj.bad_rows,col_delimiter,file_path,merging_cols="*")
+                    new_col_def = {
+                        0:{
+                            "column_name":"filename",
+                            "expression":file_path
+                        },
+                        1:{
+                            "column_name":"dateTime",
+                            "expression":"now"
+                        }
+                    }
+                    bad_merged_rows = add_columns(spark, bad_merged_rows, new_col_def)
+                    if(bad_merged_rows.count()>0):
+                        DataParser_obj.write_data(write_flag="bad_rows_write", sink=args.sink,sink_path=args.bad_rows_collection,connection_uri=args.connection_uri,write_disposition="WRITE_APPEND",create_disposition="CREATE_IF_NEEDED", df=bad_merged_rows)
 
-            purchase_df = data_validation(df=purchase_df,df_name="purchase_df")
+                # staging
+                if(DataParser_obj.get_df().count()>0):
+                    logger.info("dataframe count post cleaning: {}".format(DataParser_obj.get_df().count()))
+                    DataParser_obj.write_data(write_flag="df_rows_write", sink=args.sink,sink_path=args.staging_area,connection_uri=args.connection_uri,write_disposition=args.write_disposition, create_disposition=args.create_disposition)
 
+            '''
             if(users_df!=None and purchase_df!=None):
 
                 users_quantity_df = grpByKeyAgg(spark=spark, df=purchase_df,key="user_id",sum="Quantity")
@@ -76,7 +95,7 @@ def main():
 
                 # load data
                 write_to_sink(df=res_df, sink=args.sink, sink_path=args.output_path, connection_uri=args.connection_uri, write_disposition=args.write_disposition, create_disposition=args.create_disposition)
-
+            '''
         spark.stop()
         logger.info("spark application stopped")
 
