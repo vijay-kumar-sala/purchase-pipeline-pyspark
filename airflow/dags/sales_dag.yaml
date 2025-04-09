@@ -2,7 +2,7 @@ sales_daily_dag:
   default_args:
     retries: 0
     start_date: '2024-11-01'
-  schedule_interval: "00 22 * * *"
+  schedule_interval: None
   catchup: False
   description: "sales dag in dev env"
   tasks:
@@ -10,24 +10,43 @@ sales_daily_dag:
       operator: airflow.operators.dummy_operator.DummyOperator
     feed_processing:
       operator: airflow.operators.python.PythonOperator
-      python_callable_name: run_spark_job
+      python_callable_name: run_spark_job_feed_proc
       python_callable_file: '/home/kumar/airflow/plugins/plugin1_0.py'
       provide_context: true
       op_kwargs:
         master: "local"
         packages: "org.mongodb.spark:mongo-spark-connector_2.12:10.1.1"
         main: "/home/kumar/datapipeline-pyspark/feed_processing/src/main/app.py"
-        app_name: "sales_analysis"
-        input_path: "/vijay/xyzSales/usersData.json,/vijay/xyzSales/itemPurchaseDataWithNulls.json"
+        app_name: "sales_analysis_proc"
+        input_path: "/home/kumar/datapipeline-pyspark/source/usersData.json,/home/kumar/datapipeline-pyspark/source/itemPurchaseData.json"
         sink: "mongo"
+        bad_rows_collection: "xyzSalesDB.failed_rows"
+        staging_area: "xyzSalesDB.{}_stg"
         output_path: "xyzSalesDB.sales_analysis"
         connection_uri: "mongodb://hostname:port/"
         write_disposition: "append"
         create_disposition: "create_if_needed"
+        is_xcom_push: true
+        x_com_push_var: ["connection_uri","packages"]
       dependencies:
         - start
+    
+    main_loading:
+      operator: airflow.operators.python.PythonOperator
+      python_callable_name: run_spark_job_main_loading
+      python_callable_file: "/home/kumar/airflow/plugins/plugin1_0.py"
+      provide_context: true
+      op_kwargs:
+        master: "local"
+        main: '/home/kumar/datapipeline-pyspark/stg_to_target/src/main/app.py'
+        app_name: "sales_analysis_main"
+        target_load_config: 'region_sales.json'
+        is_xcom_pull: true
+        x_com_pull_var: ["connection_uri","packages"]
+      dependencies:
+        - feed_processing
     end:
       operator: airflow.operators.dummy_operator.DummyOperator
       trigger_rule: 'none_failed' 
       dependencies:
-        - feed_processing
+        - main_loading
