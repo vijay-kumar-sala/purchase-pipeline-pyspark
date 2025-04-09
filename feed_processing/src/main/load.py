@@ -13,16 +13,20 @@ logger = logging.getLogger('loadlog')
 def write_to_sink(df, sink, sink_path, file_extension=None, connection_uri=None, write_disposition="append", create_disposition=None):
 
     try:
-        if(sink == "file"):
-            to_file(df, sink_path, file_extension)
-        
-        if(sink == "bq"):
-            to_bq(df, sink_path, connection_uri, write_disposition, create_disposition)
-        
-        if(sink == "mongo"):
-            to_mongo(df, sink_path, connection_uri, write_disposition,create_disposition)
-        logger.info("written to sink")
-
+        if(df!=None and sink!=None):
+            if(sink == "file"):
+                to_file(df, sink_path, file_extension)
+            
+            if(sink == "bq"):
+                to_bq(df, sink_path, connection_uri, write_disposition, create_disposition)
+            
+            if(sink == "mongo"):
+                if(write_disposition=='WRITE_APPEND'):
+                    write_disposition='append'
+                to_mongo(df, sink_path, connection_uri, write_disposition,create_disposition)
+            logger.info("written to sink")
+        else:
+            logger.warn("dataframe is null:{} and sink is {}".format(df==None, sink))
     except Exception as e:
         logger.error("exception {} while writing to sink {}".format(e,sink))
 

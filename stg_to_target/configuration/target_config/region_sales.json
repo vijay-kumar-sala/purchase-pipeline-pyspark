@@ -1,0 +1,54 @@
+{
+    "source_type": "mongodb",
+    "source_collections": ["users_df_stg","itemPurchase_df_stg"],
+    "data_extraction": [
+        {
+            "database": "xyzSalesDB",
+            "collection": "users_df_stg",
+            "volume": "full"
+        },
+        {
+            "database":"xyzSalesDB",
+            "collection": "itemPurchase_df_stg",
+            "volume": "full"
+        }
+    ],
+    "transformations": [
+        {
+            "Combine": {
+                "on_df":"itemPurchase_df_stg_df",
+                "keys": ["user_id"],
+                "agg":{
+                    "Quantity": "sum"
+                },
+                "resultant_name": "res_df"
+            }
+        },
+        {
+            "join": {
+                "joining_type": "inner",
+                "joining_on": "users_df_stg_df.user_id = res_df.user_id",
+                "left_df": "users_df_stg_df",
+                "right_df": "res_df",
+                "left_df_proj_col":"",
+                "resultant_name": "res_df"
+            }
+        },
+        {
+            "Combine": {
+                "on_df":"res_df",
+                "keys": ["user_address"],
+                "agg":{
+                    "Quantity": "sum"
+                },
+                "resultant_name": "res_df"
+            }
+        }
+    ],
+    "load": {
+        "sink": "mongodb",
+        "loading_df": "res_df",
+        "output_path": "xyzSalesDB.region_sales",
+        "loading_type": "overwrite"
+    }
+}
