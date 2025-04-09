@@ -1,0 +1,28 @@
+{
+    "schema": {
+        "Date":{
+            "type":"string",
+            "required":"true"
+        },
+        "user_id":{
+            "type":"string",
+            "required":"true"
+        },
+        "Product_Name":{
+            "type":"string",
+            "required":"true"
+        },
+        "Quantity":{
+            "type":"bigint",
+            "required":"true"
+        },
+        "Unit_Price":{
+            "type":"string",
+            "required":"true"
+        },
+        "Total_Sale_Amount":{
+            "type":"string",
+            "required":"true"
+        }
+    }
+}

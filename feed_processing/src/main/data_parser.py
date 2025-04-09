@@ -1,4 +1,5 @@
 from pyspark.sql import SparkSession
+from pyspark.sql.functions import col
 import sys
 import os
 import logging
@@ -12,10 +13,10 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__),'../../co
 from custom_logging import set_logging
 
 set_logging()
-logger = logging.getLogger('readfilelog')
+logger = logging.getLogger('dataparserlog')
 
 class DataParser:
-    def __init__(self, filename, file_path, infer_schema=False, header=False, df_name= None):
+    def __init__(self, filename, file_path, df_name, infer_schema=False, header=False):
         self.__dataframe=None
         self._df_name = df_name
         self.filename = filename
@@ -25,22 +26,22 @@ class DataParser:
         self.bad_rows = None
         self.dq_conf = None
         self.data_model=None
-    def get_df():
+    def get_df(self):
         return self.__dataframe
 
     # reading data from files
     # parse spark obj, path to read file, file extension
-    def file_reader(spark):
+    def file_reader(self, spark):
         file_extension = self.file_path.split('.')[-1]
         if(file_extension=="json"):
-            self.__dataframe = self.read_json(spark, self.file_path)
+            self.read_json(spark, self.file_path)
         elif(file_extension=="csv"):
-            self.__dataframe = self.read_csv(spark, self.file_path,self.header,self.inferSchema)
+            self.read_csv(spark, self.file_path,self.header,self.inferSchema)
         elif(file_extension=="txt"):
-            self.__dataframe = self.read_text(spark, self.file_path)
+            self.read_text(spark, self.file_path)
 
     # read json file
-    def read_json(spark, path):
+    def read_json(self, spark, path):
         try:
             logger.info("reading input json file")
             self.__dataframe = spark\
@@ -52,7 +53,7 @@ class DataParser:
             logger.error("exception {} while reading input json file".format(e))
 
     # read csv file
-    def read_csv(spark, path,header,inferSchema):
+    def read_csv(self, spark, path,header,inferSchema):
         try:
             logger.info("reading input csv file")
             self.__dataframe = spark\
@@ -64,7 +65,7 @@ class DataParser:
             logger.error("exception {} while reading input csv file".format(e))
 
     # read text file
-    def read_text(spark, path):
+    def read_text(self, spark, path):
         try:
             logger.info("reading input text file")
             self.__dataframe = spark\
@@ -76,7 +77,7 @@ class DataParser:
 
     # def read_parquet()ss
 
-    def data_validation():
+    def data_validation(self):
 
         print(gex.__version__)
 
@@ -101,7 +102,7 @@ class DataParser:
         #     batch_identifiers = {"batch_id":df_name+"_batch"}
         # )
         
-        with open("/home/kumar/datapipeline-pyspark/feed_processing/configuration/data_quality/"+df_name+"_dq_config.json","r") as json_file:
+        with open("/home/kumar/datapipeline-pyspark/feed_processing/configuration/data_quality/"+self._df_name+"_dq_config.json","r") as json_file:
             self.dq_conf = json.load(json_file)
 
         suite_name = self.dq_conf["expectation_suite_name"]
@@ -208,7 +209,7 @@ class DataParser:
         # )
         # validation_results=batch.validate(expectation)
     
-    def schema_validation():
+    def schema_validation(self):
 
         try:
 
@@ -227,7 +228,7 @@ class DataParser:
             return False
 
     
-    def write_data(write_flag,sink, sink_path,connection_uri, write_disposition, create_disposition, df=None):
+    def write_data(self, write_flag,sink, sink_path,connection_uri, write_disposition, create_disposition, df=None):
 
         try:
             if(write_flag=="bad_rows_write"):
@@ -235,8 +236,12 @@ class DataParser:
                 write_to_sink(df=df, sink=sink, sink_path=sink_path, connection_uri=connection_uri, write_disposition=write_disposition, create_disposition=create_disposition)
 
             else:
+                sink_path=sink_path.format(self._df_name)
                 logger.info("writing df rows.")
-                write_to_sink(df=self.get_df(), sink=sink, sink_path=sink_path+df_name, connection_uri=connection_uri, write_disposition=write_disposition, create_disposition=create_disposition)
+                logger.info("sink_path:"+sink_path)
+                logger.info("sink:" +sink)
+                logger.info("dfname:"+ self._df_name)
+                write_to_sink(df=self.get_df(), sink=sink, sink_path=sink_path, connection_uri=connection_uri, write_disposition=write_disposition, create_disposition=create_disposition)
             
 
         except Exception as e:

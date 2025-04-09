@@ -21,6 +21,8 @@ def write_to_sink(df, sink, sink_path, file_extension=None, connection_uri=None,
                 to_bq(df, sink_path, connection_uri, write_disposition, create_disposition)
             
             if(sink == "mongo"):
+                if(write_disposition=='WRITE_APPEND'):
+                    write_disposition='append'
                 to_mongo(df, sink_path, connection_uri, write_disposition,create_disposition)
             logger.info("written to sink")
         else:

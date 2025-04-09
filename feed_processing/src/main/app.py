@@ -1,7 +1,6 @@
 from pyspark.sql import SparkSession
-from read_file import file_reader
-from validate import val_spark_obj, val_feed, val_schema, data_validation
-from transform import grpByKeyAgg, join_df
+from validate import val_spark_obj, val_feed, val_schema
+from transform import merge_columns, add_columns
 from load import write_to_sink
 from data_parser import DataParser
 import logging
@@ -48,12 +47,12 @@ def main():
                 return False
 
             filename = file_path.split('/')[-1].split('.')[0]
-            if(filename.endswith("data")):
-                filename=filename[0:filename.index("data")]
+            if(filename.endswith("Data")):
+                filename=filename[0:filename.index("Data")]
             df_name = filename+"_df"
             DataParser_obj = DataParser(filename, file_path, df_name)
             # read data
-            DataParser_obj.file_reader(spark=spark)
+            DataParser_obj.file_reader(spark)
             DataParser_obj.get_df().show()
 
 
@@ -63,8 +62,11 @@ def main():
                 DataParser_obj.data_validation()
                 if(DataParser_obj.bad_rows!=None):
                     logger.info("bad rows count: {}".format(DataParser_obj.bad_rows.count()))
-                    logger.info("{}".format(DataParser_obj.bad_rows))
-                    bad_merged_rows = merge_columns(spark,DataParser_obj.bad_rows,col_delimiter,file_path,merging_cols="*")
+                    logger.info("{}".format(DataParser_obj.bad_rows.show()))
+                    col_delimiter=','
+                    merging_cols=["*"]
+                    bad_merged_rows = merge_columns(spark,DataParser_obj.bad_rows,col_delimiter,merging_cols)
+                    bad_merged_rows.show()
                     new_col_def = {
                         0:{
                             "column_name":"filename",
@@ -75,6 +77,7 @@ def main():
                             "expression":"now"
                         }
                     }
+
                     bad_merged_rows = add_columns(spark, bad_merged_rows, new_col_def)
                     if(bad_merged_rows.count()>0):
                         DataParser_obj.write_data(write_flag="bad_rows_write", sink=args.sink,sink_path=args.bad_rows_collection,connection_uri=args.connection_uri,write_disposition="WRITE_APPEND",create_disposition="CREATE_IF_NEEDED", df=bad_merged_rows)

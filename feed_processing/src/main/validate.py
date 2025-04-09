@@ -19,7 +19,7 @@ def val_spark_obj(spark):
     
     try:
         date_df = spark.sql("SELECT current_date as date")
-        logger.info("validated spark object: {}".format(date_df.select(col(date))))
+        logger.info("validated spark object: {}".format(date_df.collect()))
         return True
 
     except Exception as e:
